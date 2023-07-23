@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/results.html" charset="ISO-8859-8" />
+    <file url="file://$PROJECT_DIR$/results.md" charset="ISO-8859-8" />
+    <file url="file://$PROJECT_DIR$/templates/calendar.html" charset="windows-1255" />
+    <file url="PROJECT" charset="windows-1252" />
+  </component>
+</project>

@@ -58,10 +58,14 @@ def read_file_text(file_name):
     with io.open(texts_path + file_name, mode='r', encoding='ISO-8859-8') as file:
         return file.read()
 
+
 book_text = [(part,book,read_file_text(html_file),match) for part,html_file,book,match in books]
+
 
 from itertools import groupby, starmap
 from operator import itemgetter
+
+
 def get_perakim_counts(part,book,filetext,match):
     pesukim = re.findall(r'<b>(?:(?P<part>[^\u00A0,]*?)[\u00A0])?(?P<perek>[^\u00A0,]*?),(?P<pasuk>[^<]*?)</b>', filetext, re.MULTILINE | re.IGNORECASE)
     matching_pasukim = [(perek,pasuk)
@@ -72,35 +76,62 @@ def get_perakim_counts(part,book,filetext,match):
                    for perek, group in groupby(numeric_pasukim, itemgetter(0))]
     return book, perek_count
 
+
 all_counts = starmap(get_perakim_counts, book_text)
+
 
 pesukim_per_day = 9
 
 
-Pasuk = namedtuple('Pasuk', 'book,perek,pasuk')
+Pasuk = namedtuple('Pasuk', 'book,perek,num_of_pasukim')
 
 
 def expand_range():
     for book, perek_count in all_counts:
         for perek, num_of_pesukim in perek_count:
-            for pasuk in range(num_of_pesukim):
-                yield Pasuk(book, perek, pasuk)
+            yield Pasuk(book, perek, num_of_pesukim)
 
-Day = namedtuple('Day', 'num,sections,gregorian_day,hebrew_day')
 
+
+Day = namedtuple('Day', 'num,sections,gregorian_day,hebrew_day,num_of_pasukim')
+
+average_target = 8.215787532275913
 def get_days():
-    current_date = date.fromisoformat('2020-01-05')
+    pasukim_processed = 0;
+    running_average = 0
+    current_date = date.fromisoformat('2020-01-05') - timedelta(1)
     expanded = list(expand_range())
-    for day in range(len(expanded) // pesukim_per_day):
-        num = day + 1
-        hebrew_day = dates.GregorianDate.from_pydate(current_date).to_heb()
-        grouped = groupby(expanded[day * pesukim_per_day: (day + 1) * pesukim_per_day],
-                          lambda p: p.book + ': ' + gematriapy.to_hebrew(p.perek))
-        sections = []
-        for book_perek, pesukim in grouped:
-            pesukim_numbers = list(map(itemgetter(2), pesukim))
-            first, last = min(pesukim_numbers) + 1, max(pesukim_numbers) + 1
-            sections.append(f'{book_perek} {gematriapy.to_hebrew(first)}-{gematriapy.to_hebrew(last)}')
-        yield Day(num, sections, current_date.strftime('%a %b %d %Y'), hebrew_day.hebrew_date_string())
-        current_date += timedelta(1)
+    day = 0
+    for book, perek, num_of_pesukim in expanded:
+        days_to_read = num_of_pesukim // 8
+        leftover_pasukim = num_of_pesukim % 8
+        if (leftover_pasukim and running_average > average_target) or days_to_read == 0:
+            days_to_read += 1
 
+        distribution = [num_of_pesukim // days_to_read] * days_to_read
+        for i, _ in enumerate(range(num_of_pesukim % days_to_read)):
+            distribution[i % len(distribution)] += 1
+
+        first = 1
+        for i, num_of_pesukim_today in enumerate(distribution):
+            day += 1
+            is_last = i == len(distribution) - 1
+            current_date += timedelta(1)
+            hebrew_day = dates.GregorianDate.from_pydate(current_date).to_heb()
+            last = first + num_of_pesukim_today
+            first_gematria = gematriapy.to_hebrew(first)
+            last_gematria = gematriapy.to_hebrew(last) # if is_last else gematriapy.to_hebrew(last)
+            sections = f'{book} {gematriapy.to_hebrew(perek)} {first_gematria}-{last_gematria}'
+            yield Day(day,
+                      sections,
+                      current_date.strftime('%Y-%m-%d'),
+                      hebrew_day.hebrew_date_string(),
+                      num_of_pesukim_today)._asdict()
+            first = last
+        pasukim_processed += num_of_pesukim
+        running_average = pasukim_processed / day
+
+if __name__ == '__main__':
+    import json
+    with open('calculation.json', 'w') as file:
+        file.write(json.dumps(list(get_days())))

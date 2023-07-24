@@ -4,6 +4,9 @@ import gematriapy
 from collections import namedtuple
 import pprint
 import io
+import calendar
+from datetime import date, timedelta
+from pyluach import dates, hebrewcal, parshios
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -73,6 +76,7 @@ all_counts = starmap(get_perakim_counts, book_text)
 
 pesukim_per_day = 9
 
+
 Pasuk = namedtuple('Pasuk', 'book,perek,pasuk')
 
 
@@ -82,56 +86,21 @@ def expand_range():
             for pasuk in range(num_of_pesukim):
                 yield Pasuk(book, perek, pasuk)
 
-file_head = '''
-<html dir="RTL" lang="HE">
-    <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=Windows-1255">
-        <style>
-            body {font-family:David;color:#000000;background-color:#FFFFFF;margin:1.5em;}
-            p {font-size:165%;text-align:justify;}
-            p.r {font-size:165%;text-align:right;}
-            p.m {font-size:120%;text-align:justify;}
-            p.s {font-size:100%;text-align:justify;}
-            tr {font-size:135%;}
-            h1 {font-size:260%;}
-            h2 {font-size:210%;}
-            h3 {font-size:180%;}
-            big {font-size:120%;vertical-align:-7%;}
-            b {font-size:70%;vertical-align:9%;}
-            small {font-size:80%;vertical-align:12%;font-weight:bold}
-            sup {font-size:115%;vertical-align:15%;}
-            span.tiny {font-size:80%;}
-            span.x {color:#660066;}
-            span.y {font-size:80%;}
-            span.eng {font-family:"Times New Roman, Arial";font-size:80%;}
-            table {
-              border-collapse: collapse;
-            }
-            th, td {
-              border: 1px solid black;
-            }
-        </style>
-    </head>
-    <body>
-        <table>
-            <tr><th>Day</th><th>Pasukim</th></tr>
-'''
+Day = namedtuple('Day', 'num,sections,gregorian_day,hebrew_day')
 
-file_tail = '''
-        </table>
-    </body>
-</html>
-'''
-expanded = list(expand_range())
-with io.open("./results.html", mode='w', encoding='utf-8') as resultsfile:
-    resultsfile.write(file_head)
+def get_days():
+    current_date = date.fromisoformat('2020-01-05')
+    expanded = list(expand_range())
     for day in range(len(expanded) // pesukim_per_day):
-        resultsfile.write(f'<tr><td>{day + 1}</td><td>')
+        num = day + 1
+        hebrew_day = dates.GregorianDate.from_pydate(current_date).to_heb()
         grouped = groupby(expanded[day * pesukim_per_day: (day + 1) * pesukim_per_day],
                           lambda p: p.book + ': ' + gematriapy.to_hebrew(p.perek))
+        sections = []
         for book_perek, pesukim in grouped:
             pesukim_numbers = list(map(itemgetter(2), pesukim))
             first, last = min(pesukim_numbers) + 1, max(pesukim_numbers) + 1
-            resultsfile.write(f'<div>{book_perek} {gematriapy.to_hebrew(first)}-{gematriapy.to_hebrew(last)}</div>')
-        resultsfile.write('</td></tr> \n')
-    resultsfile.write(file_tail)
+            sections.append(f'{book_perek} {gematriapy.to_hebrew(first)}-{gematriapy.to_hebrew(last)}')
+        yield Day(num, sections, current_date.strftime('%a %b %d %Y'), hebrew_day.hebrew_date_string())
+        current_date += timedelta(1)
+

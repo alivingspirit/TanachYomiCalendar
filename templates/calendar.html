@@ -1,4 +1,4 @@
-<html dir="RTL" lang="HE">
+<html lang="HE">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=Windows-1255">
         <style>
@@ -30,18 +30,26 @@
     <body>
         <table>
             <tr>
-                <th>Day</th>
+                <th>Day #</th>
+                <th>Gregorian Day</th>
+                <th>Hebrew Day</th>
                 <th>Pasukim</th>
             </tr>
             {% for day in days_data %}
                 <tr>
                     <td>
-                        day.num
+                        {{ day.num }}
                     </td>
                     <td>
-                        {% for section in sections %}
+                        {{ day.gregorian_day }}
+                    </td>
+                    <td>
+                        {{ day.hebrew_day }}
+                    </td>
+                    <td>
+                        {% for section in day.sections %}
                             <div>
-                                section
+                                {{ section }}
                             </div>
                         {% endfor %}
                     </td>
